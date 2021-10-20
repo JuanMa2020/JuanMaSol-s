@@ -18,7 +18,9 @@ librerias <- c("rstudioapi",#"relative path"
               "imputeTS",#imputación datos perdidos
               "Kendall", #test de Mann Kendall
               "xlsx",#importar datos en excel
-              "GGally") #gráficos múltiples relaciones
+              "GGally",#gráficos múltiples relaciones
+              "utils",
+              "rvest")#web scraping 
 lapply(librerias, library, character.only = TRUE) #con este funcion "cargamos" las librerias que vamos a usar
 
 ls() ##antes, chequeamos los objetos que tengamos creados anteriormente
@@ -28,6 +30,43 @@ setwd(dirname(getActiveDocumentContext()$path))#definimos el directorio de traba
 getwd()#verificamos el directorio de trabajo
 
 # Lo primero es obtener los datos###############################################
+
+#"WEB SCRAPING" ####
+enlace<-"http://www.siaj.fca.unju.edu.ar/perspectivas/"
+page <- read_html(enlace)
+#Exploremos archivos .csv
+page %>%
+  html_nodes("a") %>%       
+  html_attr("href") %>%     
+  str_subset(".csv")
+
+#Exploremos archivos .txt
+page %>%
+  html_nodes("a") %>%       
+  html_attr("href") %>%     
+  str_subset(".txt")
+
+#Exploremos archivos .xlsx
+page %>%
+  html_nodes("a") %>%       
+  html_attr("href") %>%     
+  str_subset(".xlsx")
+
+#Seleccionemos el primer csv de la lista####
+ref.csv<-page %>%
+  html_nodes("a") %>%       
+  html_attr("href") %>%     
+  str_subset(".csv")%>%
+  .[[1]]
+ref.csv
+enlace.ref.csv<-paste0("http://www.siaj.fca.unju.edu.ar",ref.csv)
+#descargamos el archivo en nuestra carpeta de trabajo
+download.file(enlace.ref.csv,destfile = "csvdescargado.csv") #descargamos...
+datos.de.prueba<-read.csv("csvdescargado.csv",header = TRUE) ## ..ahora leemos los datos, ups! debemos "saltar" 12 líneas
+datos.de.prueba<-read.csv("csvdescargado.csv",skip = 12,header = TRUE) ## OK!!
+
+
+# Vamos a leer datos previamente descargados ####
 misDatos<-read.csv("datosClimaticos.csv", header = T, dec = ",", sep = ";")
 head(misDatos) ##visualizamos los primeros datos
 misDatos$Tmedia<-(misDatos$Tmax + misDatos$Tmin)/2 ##calculamos temperatura media
@@ -39,10 +78,8 @@ class(misDatos) ### averiguamos que "clase" de objeto es misDatos
 tempmedia<-misDatos$Tmedia
 sum(is.na(tempmedia))  ##### ok, tenemos algunos datos perdidos, habra que corregir en la serie de tiempo
 # AHORA DEBEMOS CONVERTIR LA SERIE DE DATOS DE LA VARIABLE "Y" EN UN OBJETO "TS" ######
-serieTmedia<-ts(misDatos$Tmedia, start = c(1987,1), frequency = 365.25) ### compensamos por anios bisiestos
-
+serieTmedia<-ts(misDatos$Tmedia, frequency = 365.25, start = c(1987,1)) ### compensamos por anios bisiestos
 head(serieTmedia)
-
 plot.ts(serieTmedia) ###lo primero es visualizar la serie
 # Ahora chequeamos valores omitidos o perdidos ####
 sum(is.na(serieTmedia)) #### contamos valores perdidos, entonces .....
@@ -101,14 +138,14 @@ abline(reg = lm(serieTmedia2~time(serieTmedia2))) ###visualizamos si existe tend
 plot(serieTmedia2- serieDescompuesta$seasonal)
 plot(serieTmedia2- serieDescompuesta$trend)
 plot(serieTmedia2)
-
 #"Stl": “Seasonal and Trend decomposition using Loess”. Loess is a method for estimating nonlinear relationships
 serieDescompuesta2<-stl(serieTmedia2,t.window=13, 
                         s.window="periodic", robust=TRUE)
 autoplot(serieDescompuesta2)
 
 #"Perfil" estacional
-ggseasonplot(serieTmedia2)
+ggseasonplot(serieTmedia2,
+             year.labels=TRUE, year.labels.left=TRUE)
 
 # Estacionariedad #######################
 
@@ -122,7 +159,6 @@ ndiffs(serieTmedia2) #### es decir, no es necesario diferenciar!!!!!!!!!!!!
 ?MannKendall #No paramétrico; H0: No hay tendencia
 MannKendall(serieTmedia2) ### !!!!!!!!!
 SeasonalMannKendall(serieTmedia2)
-
 # y Mann Kendall para pp??
 pp<-misDatos$PP
 ppts<-ts(pp, start = c(1987,1), frequency = 365.25)
@@ -163,4 +199,3 @@ sp.TRMM.sup<-sum(trmm-sup)/sum(sup)
 cor.test(trmm,sup,method = "pearson") #Pearson
 cor.test(trmm,sup,method = "spearman") #Spearman (n.p.)
 cor.test(trmm,sup,method = "kendall") #Kendall (n.p.)
-
