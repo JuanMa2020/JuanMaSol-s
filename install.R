@@ -1,1 +1,7 @@
 install.packages("ggplot2")
+install.packages("rstudioapi")
+install.packages("tidyverse") 
+install.packages("stringr")
+install.packages("forecast") 
+install.packages("tseries")
+install.packages("imputeTS") 
