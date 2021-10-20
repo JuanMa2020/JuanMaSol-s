@@ -8,14 +8,18 @@
 ####https://cran.r-project.org/ --------------------------------------
 ####https://www.rstudio.com/------------------------------------------
 #### COMENCEMOS !!!!##################################################
-#Cargamos librerías que vamos a utilizar
-library("rstudioapi")#"relative path"
-library(tidyverse) #manipulación de datos
-library("stringr") #operacion con textos
-require(forecast) #modelos de predicción series temporales
-library(tseries) #series de tiempo
-library(imputeTS) #imputación datos perdidos
-library(ggplot2) #gráficos
+#Definidmos las librerías que vamos a utilizar y luego las cargamos
+librerias <- c("rstudioapi",#"relative path"
+              "tidyverse",#manipulación de datos
+              "ggplot2",#gráficos
+              "stringr",#operacion con textos
+              "forecast",#modelos de predicción series temporales
+              "tseries",#series de tiempo
+              "imputeTS",#imputación datos perdidos
+              "Kendall", #test de Mann Kendall
+              "xlsx",#importar datos en excel
+              "GGally") #gráficos múltiples relaciones
+lapply(librerias, library, character.only = TRUE) #con este funcion "cargamos" las librerias que vamos a usar
 
 ls() ##antes, chequeamos los objetos que tengamos creados anteriormente
 rm(list=ls()) ### borramos los objetos que tengamos creados anteriormente
@@ -75,9 +79,11 @@ misDatos%>% #del paso anterior
   geom_histogram(colour="black",binwidth = 1)+
   facet_wrap(~Mes,scales = "free")
 
-#"Perfil" estacional
-ggseasonplot(serieTmedia2)
+# Un poco de práctica: "reciclemos" las últimas líneas y grafiquemos la variable PP ####
 
+
+# Volvemos a nuestros datos simplificados
+# Asignamos "índices" a nuestra serie ####
 serieTmedia2<-ts(misDatos2$PromedioTmedia, start = c(1987,1), frequency = 12) #ojo! la frecuencia
 autoplot(serieTmedia2) 
 sum(is.na(serieTmedia2))
@@ -101,16 +107,60 @@ serieDescompuesta2<-stl(serieTmedia2,t.window=13,
                         s.window="periodic", robust=TRUE)
 autoplot(serieDescompuesta2)
 
+#"Perfil" estacional
+ggseasonplot(serieTmedia2)
+
 # Estacionariedad #######################
 
-#¿Nuestra serie cumple con el criterio de "estacionariedad??
-
+#¿Nuestra serie cumple con el criterio de "estacionariedad?? ANÁLISIS DE TENDENCIAS####
 Acf(serieTmedia2) 
 Pacf(serieTmedia2)
-adf.test(serieTmedia2) #### p-valor < 0.05, excelente
+adf.test(serieTmedia2) #### p-valor < 0.05, excelente (Dickey Fuller)
 kpss.test(serieTmedia2) ##### p-valor > 0.05, tambien excelente!!! (es distinto a adf)
 pp.test(serieTmedia2) #### p-valor < 0.05, excelente (el criterio es el mismo que adf)
-
-#### para corroborar aun mas
 ndiffs(serieTmedia2) #### es decir, no es necesario diferenciar!!!!!!!!!!!!
-#diff()
+?MannKendall #No paramétrico; H0: No hay tendencia
+MannKendall(serieTmedia2) ### !!!!!!!!!
+SeasonalMannKendall(serieTmedia2)
+
+# y Mann Kendall para pp??
+pp<-misDatos$PP
+ppts<-ts(pp, start = c(1987,1), frequency = 365.25)
+# Realizar la prueba
+
+
+#VALIDACIÓN DE DATOS CLIMÁTICOS: SENSORES REMOTOS VS OBSERVACIONES EN ESTACIONES ####
+##GIOVANNI: JUJUY AERO
+vpp<-read.xlsx("validacionPP.xlsx",sheetIndex = 1,header = TRUE,encoding = "UTF-8")
+vpp$Mes<-as.factor(vpp$Mes)
+ggpairs(vpp[,c(4:6)],upper = list(
+  continuous = wrap('cor', method = "pearson")
+),aes(alpha=0.65))
+#y por mes?
+ggpairs(vpp[vpp$Mes=="1",c(4:6)],upper = list( #enero
+  continuous = wrap('cor', method = "pearson")
+),aes(alpha=0.65))
+
+
+sup<-vpp$Superficie #valores observados en superficie
+trmm<-vpp$TRMM #satélite TRMM
+gpm<-vpp$GPM #satélite GPM
+
+
+#ERROR CUADRÁTICO MEDIO ####
+#ECM PARA TRMM
+qdtrmm<-mean((trmm-sup)^2)
+ecm.TRMM.Sup<-sqrt(qdtrmm)
+# ECM PARA GPM??
+
+#SESGO PORCENTUAL ####
+#SP para TRMM
+sp.TRMM.sup<-sum(trmm-sup)/sum(sup)
+#SP para GPM?
+
+#COEFICIENTE DE CORRELACIÓN####
+#CC para TRMM
+cor.test(trmm,sup,method = "pearson") #Pearson
+cor.test(trmm,sup,method = "spearman") #Spearman (n.p.)
+cor.test(trmm,sup,method = "kendall") #Kendall (n.p.)
+
