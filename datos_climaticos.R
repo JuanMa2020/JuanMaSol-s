@@ -9,19 +9,19 @@
 ####https://www.rstudio.com/------------------------------------------
 #### COMENCEMOS !!!!##################################################
 #Definidmos las librerías que vamos a utilizar y luego las cargamos
-librerias <- c("rstudioapi",#"relative path"
-              "tidyverse",#manipulación de datos
-              "ggplot2",#gráficos
-              "stringr",#operacion con textos
-              "forecast",#modelos de predicción series temporales
-              "tseries",#series de tiempo
-              "imputeTS",#imputación datos perdidos
-              "Kendall", #test de Mann Kendall
-              "xlsx",#importar datos en excel
-              "GGally",#gráficos múltiples relaciones
-              "utils",
-              "rvest")#web scraping 
-lapply(librerias, library, character.only = TRUE) #con este funcion "cargamos" las librerias que vamos a usar
+library("rstudioapi")#"relative path"
+library("tidyverse")#manipulación de datos
+library("ggplot2")#gráficos
+library("stringr")#operacion con textos
+library("forecast")#modelos de predicción series temporales
+library("tseries")#series de tiempo
+library("imputeTS")#imputación datos perdidos
+library("Kendall") #test de Mann Kendall
+library("xlsx")#importar datos en excel
+library("GGally")#gráficos múltiples relaciones
+library("utils")
+library("rvest")#web scraping 
+library(agricolae) #algunas medidas de resumen/dispersión
 
 ls() ##antes, chequeamos los objetos que tengamos creados anteriormente
 rm(list=ls()) ### borramos los objetos que tengamos creados anteriormente
@@ -63,8 +63,11 @@ enlace.ref.csv<-paste0("http://www.siaj.fca.unju.edu.ar",ref.csv)
 #descargamos el archivo en nuestra carpeta de trabajo
 download.file(enlace.ref.csv,destfile = "csvdescargado.csv") #descargamos...
 datos.de.prueba<-read.csv("csvdescargado.csv",header = TRUE) ## ..ahora leemos los datos, ups! debemos "saltar" 12 líneas
-datos.de.prueba<-read.csv("csvdescargado.csv",skip = 12,header = TRUE) ## OK!!
-
+datos.de.prueba<-read.csv("csvdescargado.csv",
+                          skip = 12,
+                          check.names = F,
+                          header = TRUE) ## OK!!
+file.remove("csvdescargado.csv") #borramos el archivo recientemente descargado
 
 # Vamos a leer datos previamente descargados ####
 misDatos<-read.csv("datosClimaticos.csv", header = T, dec = ",", sep = ";")
@@ -118,6 +121,10 @@ misDatos%>% #del paso anterior
 
 # Un poco de práctica: "reciclemos" las últimas líneas y grafiquemos la variable PP ####
 
+
+## Variabilidad
+sd(misDatos2$PromedioTmedia,na.rm = TRUE)#tener en cuenta los datos faltantes
+skewness(misDatos2$PromedioTmedia)
 
 # Volvemos a nuestros datos simplificados
 # Asignamos "índices" a nuestra serie ####
